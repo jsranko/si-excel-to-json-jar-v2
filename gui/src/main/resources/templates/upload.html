@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>IBM i File Upload</title>
+    <script src="images/jquery-3.6.1.min.js"></script>
+    <link rel="stylesheet" href="images/main.css">
+</head>
+
+<body>
+<div class="container">
+    <div id="drop_file_area" class="tainas_look">
+        <input type="file" name="files[]" id="file" class="box__file" data-multiple-caption="{count} files selected" multiple />
+        <label for="file"><strong>Choose a file</strong><span class="box__dragndrop"> or drag it here</span>.</label>
+        <button type="submit" class="box__button">Upload</button>
+    </div>
+    <div id="processing_area">
+    </div>
+    <div id="uploaded_file"></div>
+</div>
+
+<script th:inline="javascript">
+
+    $(document).ready(function () {
+        var clientInfo={
+
+            timeOpened:new Date(),
+            timezone:(new Date()).getTimezoneOffset()/60,
+            pageon: window.location.pathname,
+            referrer: document.referrer,
+            previousSite: history.length,
+            browserName: navigator.appName,
+            browserEngine: navigator.product,
+            browserVersion1a: navigator.appVersion,
+            browserVersion1b: navigator.userAgent,
+            browserLanguage: navigator.language,
+            browserOnline: navigator.onLine,
+            browserPlatform: navigator.platform,
+            javaEnabled: navigator.javaEnabled(),
+            dataCookiesEnabled: navigator.cookieEnabled,
+            dataCookies1: document.cookie,
+            dataCookies2: decodeURIComponent(document.cookie.split(";")),
+            dataStorage: localStorage,
+            sizeScreenW: screen.width,
+            sizeScreenH: screen.height,
+            sizeDocW: document.width,
+            sizeDocH: document.height,
+            sizeInW: innerWidth,
+            sizeInH: innerHeight,
+            sizeAvailW: screen.availWidth,
+            sizeAvailH: screen.availHeight,
+            scrColorDepth: screen.colorDepth,
+            scrPixelDepth: screen.pixelDepth
+
+        };
+
+        $("html").on("dragover", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        $("html").on("drop", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        $('#drop_file_area').on('dragover', function () {
+            $(this).addClass('drag_over');
+            return false;
+        });
+        $('#drop_file_area').on('dragleave', function () {
+            $(this).removeClass('drag_over');
+            return false;
+        });
+        $('#drop_file_area').on('drop', function (e) {
+            e.preventDefault();
+            $(this).removeClass('drag_over');
+            var formData = new FormData();
+            formData.append('callback', [[${callbackUrl}]]);
+            formData.append('actionData', [[${actionData}]]);
+            formData.append('clientInfo', JSON.stringify(clientInfo));
+            //formData.append('file', e.originalEvent.dataTransfer.files.item(0));
+            var files = e.originalEvent.dataTransfer.files;
+            //for (var i = 0; i < files.length; i++) {
+            for (var i = 0; i < 1; i++) {
+                formData.append('file', files[i]);
+            }
+            $(this).hide();
+            $("#processing_area").show();
+            uploadFormData(formData);
+        });
+        function uploadFormData(form_data) {
+            var reqUrl = [[@{/uploadFile}]]
+        	$.ajax({
+                url: reqUrl,
+                method: "POST",
+                data: form_data,
+                contentType: false,
+                cache: false,
+                processData: false,
+                success: function (data) {
+                    //window.location = data;
+                    $('body').html(data);
+                }
+            });
+        }
+    });
+
+</script>
+</body>
+
+</html>
