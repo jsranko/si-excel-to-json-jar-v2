@@ -60,6 +60,10 @@ public class ExcelParser {
         if (!Objects.isNull(actionData)) {
 
             sheet = workbook.getSheet(actionData.getSheet());
+            if (sheet == null){
+                logger.debug(String.format("Sheet %s in Excel nicht gefunden.", actionData.getSheet()));
+                throw new ExcelParserException(String.format("Sheet %s in Excel nicht gefunden.", actionData.getSheet()));
+            }
 
             workbookJSON = getSheetAsJSON(workbookJSON, sheet, actionData.getStart().getRow(), actionData.getStart().getColumn(), actionData.getFieldsToUpload());
 
