@@ -7,13 +7,20 @@ public class ActionDataSheet {
     private String sheet;
     private ActionDataSheetStart start;
     private String[] fieldsToUpload;
+    private String[] keyFields;
 
     public ActionDataSheet() {
+        this.sheet = null;
+        this.start = new ActionDataSheetStart(0, 0);
+        this.fieldsToUpload = null;
+        this.keyFields = null;
     }
 
-    public ActionDataSheet(String sheet, ActionDataSheetStart start) {
+    public ActionDataSheet(String sheet, ActionDataSheetStart start, String[] fieldsToUpload, String[] keyFields) {
         this.sheet = sheet;
         this.start = start;
+        this.fieldsToUpload = fieldsToUpload;
+        this.keyFields = keyFields;
     }
 
     public String getSheet() {
@@ -38,6 +45,14 @@ public class ActionDataSheet {
 
     public void setFieldsToUpload(String[] fieldsToUpload) {
         this.fieldsToUpload = fieldsToUpload;
+    }
+
+    public String[] getKeyFields() {
+        return keyFields;
+    }
+
+    public void setKeyFields(String[] keyFields) {
+        this.keyFields = keyFields;
     }
 
     @Override

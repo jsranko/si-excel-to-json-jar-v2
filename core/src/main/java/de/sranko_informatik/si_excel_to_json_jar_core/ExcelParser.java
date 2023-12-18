@@ -65,7 +65,7 @@ public class ExcelParser {
                 throw new ExcelParserException(String.format("Sheet %s in Excel nicht gefunden.", actionData.getSheet()));
             }
 
-            workbookJSON = getSheetAsJSON(workbookJSON, sheet, actionData.getStart().getRow(), actionData.getStart().getColumn(), actionData.getFieldsToUpload());
+            workbookJSON = getSheetAsJSON(workbookJSON, sheet, actionData);
 
         } else {
 
@@ -75,7 +75,7 @@ public class ExcelParser {
                 //Read sheet inside the workbook by index
                 sheet = workbook.getSheetAt(s);
 
-                workbookJSON = getSheetAsJSON(workbookJSON, sheet, 0, 0, null);
+                workbookJSON = getSheetAsJSON(workbookJSON, sheet, new ActionDataSheet());
 
             }
 
@@ -86,13 +86,13 @@ public class ExcelParser {
         return workbookJSON;
     }
 
-    private static JSONObject getSheetAsJSON(JSONObject workbookJSON, Sheet sheet, int startRow, int startColumn, String[] fieldsToUpload) throws IllegalStateException{
+    private static JSONObject getSheetAsJSON(JSONObject workbookJSON, Sheet sheet, ActionDataSheet actionDataSheet) throws IllegalStateException{
 
         Logger logger = LoggerFactory.getLogger(ExcelParser.class);
 
-        logger.debug(String.format("Sheet: %s wird von Zeile: %s und Splate: %s bearbeitet.", sheet.getSheetName(), startRow, startColumn));
-        if (fieldsToUpload != null){
-            logger.debug(String.format("Nur folgende Spalten werden importiert: %s.", Arrays.toString(fieldsToUpload)));
+        logger.debug(String.format("Sheet: %s wird von Zeile: %s und Splate: %s bearbeitet.", sheet.getSheetName(), actionDataSheet.getStart().getRow(), actionDataSheet.getStart().getColumn()));
+        if (actionDataSheet.getFieldsToUpload() != null){
+            logger.debug(String.format("Nur folgende Spalten werden importiert: %s.", Arrays.toString(actionDataSheet.getFieldsToUpload())));
         }
 
         JSONArray sheetList = new JSONArray();
@@ -100,10 +100,10 @@ public class ExcelParser {
         //Find number of rows in excel file
         int rowCount = 0;
         int tableDataRow = 0;
-        if (startRow == 0) {
+        if (actionDataSheet.getStart().getRow() == 0) {
             rowCount = sheet.getLastRowNum() - sheet.getFirstRowNum();
         } else {
-            rowCount = sheet.getLastRowNum() - startRow;
+            rowCount = sheet.getLastRowNum() - actionDataSheet.getStart().getRow();
         }
 
         logger.debug(String.format("%s Zeilen werden bearbeitet", rowCount));
@@ -112,17 +112,17 @@ public class ExcelParser {
 
         //First row in Excel ist always table head
         int headerRow = 0;
-        if (startRow != 0) {
-            headerRow = startRow - 1;
+        if (actionDataSheet.getStart().getRow() != 0) {
+            headerRow = actionDataSheet.getStart().getRow() - 1;
         }
 
-        headerList = getTableColumns(sheet.getRow(headerRow), startColumn, fieldsToUpload);
+        headerList = getTableColumns(sheet.getRow(headerRow), actionDataSheet.getStart().getColumn(), actionDataSheet.getFieldsToUpload());
         logger.debug(String.format("Tabelenkopf gefunden: %s.", headerList.toString()));
 
-        if (fieldsToUpload != null){
+        if (actionDataSheet.getFieldsToUpload() != null){
             if (!existFieldToUpload(headerList)){
-                logger.debug(String.format("Spalten %s nicht in Excel gefunden.", Arrays.toString(fieldsToUpload)));
-                throw new ExcelParserException(String.format("Spalten %s nicht in Excel gefunden.", Arrays.toString(fieldsToUpload)));
+                logger.debug(String.format("Spalten %s nicht in Excel gefunden.", Arrays.toString(actionDataSheet.getFieldsToUpload())));
+                throw new ExcelParserException(String.format("Spalten %s nicht in Excel gefunden.", Arrays.toString(actionDataSheet.getFieldsToUpload())));
             }
         }
 
@@ -135,6 +135,7 @@ public class ExcelParser {
             if (isRowEmpty(row)) {
                 continue;
             }
+
             List<ExcelColumn> rowColumnsList = null;
             try {
                 rowColumnsList = getRowColumns(row, headerList);
@@ -144,6 +145,12 @@ public class ExcelParser {
             JSONObject jsonRow = new JSONObject();
             int index = 0;
             for (ExcelColumn column : rowColumnsList) {
+
+                // Prüfung, ob Key-Spalte Daten beinhaltet. Gibt es da keine Daten, dann die nächste Zeile
+                if (isKeyColumnEmpty(column, actionDataSheet.getKeyFields())) {
+                    logger.debug(String.format("Zeile %s ignoriert, da die Key-Spalte: %S keinen Wert hat.", i, actionDataSheet.getKeyFields().toString()));
+                    break;
+                }
 
                 if (headerList.get(index).isUpload()){
                     jsonRow.put(headerList.get(index).getName(), column.getValue());
@@ -232,7 +239,7 @@ public class ExcelParser {
             //Print Excel data in console
             Cell cell = row.getCell(c);
             if (cell == null) {
-                output.add(new ExcelColumn(ColumnType.CHAR, null, ""));
+                output.add(new ExcelColumn(ColumnType.CHAR, headerList.get(c).getName(), ""));
                 continue;
             }
             CellType cellType = cell.getCellType();
@@ -241,23 +248,23 @@ public class ExcelParser {
             }
             switch (cellType) {
                 case BOOLEAN:
-                    output.add(new ExcelColumn(ColumnType.CHAR, null, String.valueOf(cell.getBooleanCellValue()), row.getRowNum(), c,headerList.get(c).isUpload()));
+                    output.add(new ExcelColumn(ColumnType.CHAR, headerList.get(c).getName(), String.valueOf(cell.getBooleanCellValue()), row.getRowNum(), c,headerList.get(c).isUpload()));
                     break;
                 case NUMERIC:
                     if (DateUtil.isCellDateFormatted(cell)) {
-                        output.add(new ExcelColumn(ColumnType.NUMBER, null, sdf.format(cell.getDateCellValue()), row.getRowNum(), c,headerList.get(c).isUpload()));
+                        output.add(new ExcelColumn(ColumnType.NUMBER, headerList.get(c).getName(), sdf.format(cell.getDateCellValue()), row.getRowNum(), c,headerList.get(c).isUpload()));
                     } else {
-                        output.add(new ExcelColumn(ColumnType.NUMBER, null, NumberToTextConverter.toText(cell.getNumericCellValue()), row.getRowNum(), c,headerList.get(c).isUpload()));
+                        output.add(new ExcelColumn(ColumnType.NUMBER, headerList.get(c).getName(), NumberToTextConverter.toText(cell.getNumericCellValue()), row.getRowNum(), c,headerList.get(c).isUpload()));
                     }
 
                     break;
                 case STRING:
-                    output.add(new ExcelColumn(ColumnType.VARCHAR, null, cell.getRichStringCellValue().getString(), row.getRowNum(), c,headerList.get(c).isUpload()));
+                    output.add(new ExcelColumn(ColumnType.VARCHAR, headerList.get(c).getName(), cell.getRichStringCellValue().getString(), row.getRowNum(), c,headerList.get(c).isUpload()));
                     break;
                 case BLANK:
                 case _NONE:
                 case ERROR:
-                    output.add(new ExcelColumn(ColumnType.VARCHAR, null, "", row.getRowNum(), c,headerList.get(c).isUpload()));
+                    output.add(new ExcelColumn(ColumnType.VARCHAR, headerList.get(c).getName(), "", row.getRowNum(), c,headerList.get(c).isUpload()));
                     break;
             }
         }
@@ -277,6 +284,30 @@ public class ExcelParser {
                     break;
                 }
             }
+        }
+
+        return isEmpty;
+    }
+
+    private static boolean isKeyColumnEmpty(ExcelColumn column, String[] keyFields ) {
+        boolean isEmpty = true;
+
+        // Falls keine Key-Felder definiert sind, die Prüfung ignorieren
+        if ( keyFields == null) {
+            return false;
+        }
+        if ( column == null) {
+            return true;
+        }
+
+        // Prüfung, ob Key-Spalte Werte beinhaltet oder nicht.
+        if ( istStringImArray(keyFields, column.getName()) ) {
+            if ( column.getValue() != "" ) {
+                return false;
+            }
+        } else {
+            // Falls es sich nicht um KeySpalte handelt, Prüfung ignorieren
+            return false;
         }
 
         return isEmpty;
