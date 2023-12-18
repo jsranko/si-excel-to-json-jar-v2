@@ -158,7 +158,9 @@ public class ExcelParser {
                 index += 1;
             }
             logger.debug(String.format("Zeile %s erstellt: %s", i, jsonRow.toString()));
-            sheetList.put(jsonRow);
+            if (!jsonRow.isEmpty()) {
+                sheetList.put(jsonRow);
+            }
         }
 
         JSONObject sheetJSON = new JSONObject();
