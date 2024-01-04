@@ -103,7 +103,7 @@ public class ExcelParser {
         if (actionDataSheet.getStart().getRow() == 0) {
             rowCount = sheet.getLastRowNum() - sheet.getFirstRowNum();
         } else {
-            rowCount = sheet.getLastRowNum() - actionDataSheet.getStart().getRow();
+            rowCount = (sheet.getLastRowNum() + 1) - actionDataSheet.getStart().getRow();
         }
 
         logger.debug(String.format("%s Zeilen werden bearbeitet", rowCount));
